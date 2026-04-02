@@ -813,3 +813,204 @@ if (stats.totalDraws > 0) {
     showToast(`⚜ 歡迎回到聖言寶庫！連續 ${stats.streak} 天靈修`, 3500);
   }, 1200);
 }
+
+// ═══════════════════════════════════════════════════
+// FIREBASE GOOGLE 登入 & FIRESTORE 雲端同步
+// ═══════════════════════════════════════════════════
+let currentUser = null;
+
+const googleLoginBtn = document.getElementById('googleLoginBtn');
+const userProfile    = document.getElementById('userProfile');
+const userAvatarBtn  = document.getElementById('userAvatarBtn');
+const userDropdown   = document.getElementById('userDropdown');
+const userAvatar     = document.getElementById('userAvatar');
+const userName       = document.getElementById('userName');
+const dropdownAvatar = document.getElementById('dropdownAvatar');
+const dropdownName   = document.getElementById('dropdownName');
+const dropdownEmail  = document.getElementById('dropdownEmail');
+const syncFavBtn     = document.getElementById('syncFavBtn');
+const logoutBtn      = document.getElementById('logoutBtn');
+
+// ── 如果 Firebase 未設定，隱藏登入按鈕並提示 ──
+if (!firebaseReady) {
+  if (googleLoginBtn) {
+    googleLoginBtn.title = 'Firebase 尚未設定';
+    googleLoginBtn.style.opacity = '0.4';
+    googleLoginBtn.addEventListener('click', () => {
+      showToast('⚠ 請先設定 Firebase 才能使用 Google 登入');
+    });
+  }
+} else {
+  // ── Firebase Auth 狀態監聽 ──
+  firebaseAuth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      showUserProfile(user);
+      loadCloudFavorites(); // 登入後自動載入雲端收藏
+    } else {
+      currentUser = null;
+      hideUserProfile();
+    }
+  });
+
+  // ── Google 登入 ──
+  googleLoginBtn.addEventListener('click', async () => {
+    soundMenuClick();
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try {
+      await firebaseAuth.signInWithPopup(provider);
+      showToast('✝ 已以 Google 帳號登入！正在載入你的靈糧寶典...');
+    } catch (err) {
+      console.error('登入失敗', err);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        showToast('⚠ 登入失敗，請稍後再試');
+      }
+    }
+  });
+
+  // ── 登出 ──
+  logoutBtn.addEventListener('click', async () => {
+    soundMenuClick();
+    await firebaseAuth.signOut();
+    closeDropdown();
+    showToast('⚡ 已登出，收藏仍保存在本機');
+  });
+
+  // ── 手動觸發雲端同步 ──
+  syncFavBtn.addEventListener('click', async () => {
+    soundFavorite();
+    closeDropdown();
+    await syncToCloud();
+  });
+}
+
+// ── 顯示用戶資訊 ──
+function showUserProfile(user) {
+  if (!googleLoginBtn || !userProfile) return;
+  googleLoginBtn.classList.add('hidden');
+  userProfile.classList.remove('hidden');
+
+  const photo = user.photoURL || '';
+  const name  = user.displayName || user.email || '聖徒';
+  const email = user.email || '';
+
+  userAvatar.src     = photo;
+  dropdownAvatar.src = photo;
+  userName.textContent      = name.split(' ')[0]; // first name only
+  dropdownName.textContent  = name;
+  dropdownEmail.textContent = email;
+}
+
+function hideUserProfile() {
+  if (!googleLoginBtn || !userProfile) return;
+  userProfile.classList.add('hidden');
+  googleLoginBtn.classList.remove('hidden');
+}
+
+// ── Dropdown 開關 ──
+userAvatarBtn && userAvatarBtn.addEventListener('click', () => {
+  soundMenuClick();
+  const isOpen = !userDropdown.classList.contains('hidden');
+  if (isOpen) {
+    closeDropdown();
+  } else {
+    userDropdown.classList.remove('hidden');
+    userAvatarBtn.classList.add('open');
+  }
+});
+
+function closeDropdown() {
+  if (!userDropdown) return;
+  userDropdown.classList.add('hidden');
+  userAvatarBtn && userAvatarBtn.classList.remove('open');
+}
+
+// 點擊外部關閉下拉
+document.addEventListener('click', e => {
+  if (userProfile && !userProfile.contains(e.target)) {
+    closeDropdown();
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// FIRESTORE 雲端同步
+// ═══════════════════════════════════════════════════
+
+// 取得用戶的 Firestore 文件路徑
+function getUserDocRef() {
+  if (!currentUser || !firebaseDb) return null;
+  return firebaseDb.collection('users').doc(currentUser.uid);
+}
+
+// ── 上傳收藏到雲端 ──
+async function syncToCloud() {
+  const docRef = getUserDocRef();
+  if (!docRef) { showToast('⚠ 請先登入再同步'); return; }
+
+  try {
+    showToast('☁ 同步中...');
+    await docRef.set({
+      favorites: favorites,
+      lastSync: new Date().toISOString(),
+      displayName: currentUser.displayName,
+      email: currentUser.email
+    }, { merge: true });
+    showToast('✅ 收藏已同步至雲端！');
+  } catch (err) {
+    console.error('同步失敗', err);
+    showToast('⚠ 同步失敗，請檢查網路');
+  }
+}
+
+// ── 從雲端載入收藏 ──
+async function loadCloudFavorites() {
+  const docRef = getUserDocRef();
+  if (!docRef) return;
+
+  try {
+    const doc = await docRef.get();
+    if (doc.exists) {
+      const data = doc.data();
+      const cloudFavs = data.favorites || [];
+
+      if (cloudFavs.length > 0) {
+        // 合併本機與雲端（以 reference 去重）
+        const merged = [...favorites];
+        cloudFavs.forEach(cv => {
+          if (!merged.some(lv => lv.reference === cv.reference)) {
+            merged.push(cv);
+          }
+        });
+
+        favorites = merged;
+        localStorage.setItem('sv_favorites', JSON.stringify(favorites));
+        updateFavCount();
+        checkSaveState();
+
+        const lastSync = data.lastSync
+          ? new Date(data.lastSync).toLocaleDateString('zh-TW')
+          : '未知';
+        showToast(`☁ 已載入雲端收藏（${cloudFavs.length} 節），上次同步：${lastSync}`, 4000);
+      }
+    } else {
+      // 新用戶 — 把本機收藏上傳
+      if (favorites.length > 0) {
+        await syncToCloud();
+      }
+    }
+  } catch (err) {
+    console.error('載入雲端收藏失敗', err);
+    showToast('⚠ 無法載入雲端收藏，使用本機資料');
+  }
+}
+
+// ── 儲存收藏時若已登入，自動同步 ──
+const _originalSaveBtnHandler = saveBtn.onclick;
+saveBtn.addEventListener('click', () => {
+  // 延遲 500ms 等本機更新完成再同步
+  if (currentUser && firebaseReady) {
+    setTimeout(syncToCloud, 500);
+  }
+});
+
