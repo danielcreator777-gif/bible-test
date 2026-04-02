@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>✝ 聖言寶庫 — 神聖經文探索</title>
+  <meta name="description" content="以中世紀遊戲風格探索聖經金句，收藏屬於你的靈糧寶藏。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;600;700;900&family=Cinzel+Decorative:wght@400;700&family=IM+Fell+English:ital@0;1&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Canvas for particles/embers -->
+  <canvas id="emberCanvas"></canvas>
+
+  <!-- Torch flicker lights -->
+  <div class="torch torch-left" id="torchLeft">
+    <div class="torch-pole"></div>
+    <div class="torch-fire">
+      <div class="flame f1"></div>
+      <div class="flame f2"></div>
+      <div class="flame f3"></div>
+    </div>
+    <div class="torch-glow"></div>
+  </div>
+  <div class="torch torch-right" id="torchRight">
+    <div class="torch-pole"></div>
+    <div class="torch-fire">
+      <div class="flame f1"></div>
+      <div class="flame f2"></div>
+      <div class="flame f3"></div>
+    </div>
+    <div class="torch-glow"></div>
+  </div>
+
+  <!-- Stone wall texture overlay -->
+  <div class="stone-overlay"></div>
+  <!-- Vignette -->
+  <div class="vignette"></div>
+
+  <!-- ══ TOP BAR ══ -->
+  <header class="top-bar" id="topBar">
+    <div class="header-crest">
+      <div class="crest-icon">✝</div>
+      <div class="crest-text">
+        <span class="crest-title">聖言寶庫</span>
+        <span class="crest-sub">SACRED VERSE TREASURY</span>
+      </div>
+    </div>
+    <nav class="header-nav">
+      <button class="rune-btn" id="dailyVerseBtn" title="今日神諭">
+        <span class="rune-icon">☀</span>
+        <span class="rune-label">今日神諭</span>
+      </button>
+      <button class="rune-btn" id="viewFavoritesBtn" title="我的寶典">
+        <span class="rune-icon">♥</span>
+        <span class="rune-label">寶典 (<span id="favCount">0</span>)</span>
+      </button>
+      <button class="rune-btn" id="historyBtn" title="探索紀錄">
+        <span class="rune-icon">⚔</span>
+        <span class="rune-label">紀錄</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ══ MAIN ══ -->
+  <main class="realm-container" id="mainContainer">
+
+    <!-- Hero Title -->
+    <div class="hero-section">
+      <div class="ornament-line"><span class="ornament-symbol">⸻ ✦ ⸻</span></div>
+      <h1 class="realm-title">每日聖經經文</h1>
+      <p class="realm-subtitle">願神的話語成為你腳前的燈、路上的光</p>
+      <div class="ornament-line"><span class="ornament-symbol">⸻ ✦ ⸻</span></div>
+    </div>
+
+    <!-- Category Tabs (Scrollable) -->
+    <div class="scroll-categories" id="categoryScroll">
+      <div class="scroll-inner" id="categoryBar">
+        <button class="scroll-tab active" data-category="all">⚜ 全部卷冊</button>
+        <button class="scroll-tab" data-category="strength">⚔ 力量</button>
+        <button class="scroll-tab" data-category="peace">🕊 和平</button>
+        <button class="scroll-tab" data-category="love">♥ 愛</button>
+        <button class="scroll-tab" data-category="faith">✝ 信仰</button>
+        <button class="scroll-tab" data-category="wisdom">📜 智慧</button>
+        <button class="scroll-tab" data-category="prayer">🙏 禱告</button>
+        <button class="scroll-tab" data-category="salvation">✨ 救恩</button>
+        <button class="scroll-tab" data-category="grace">🌿 恩典</button>
+        <button class="scroll-tab" data-category="joy">☀ 喜樂</button>
+        <button class="scroll-tab" data-category="hope">⭐ 盼望</button>
+        <button class="scroll-tab" data-category="blessing">🏆 祝福</button>
+        <button class="scroll-tab" data-category="forgiveness">🕊 饒恕</button>
+        <button class="scroll-tab" data-category="truth">⚖ 公義</button>
+        <button class="scroll-tab" data-category="eternity">∞ 永生</button>
+      </div>
+    </div>
+
+    <!-- Parchment Card -->
+    <div class="parchment-wrapper">
+      <div class="parchment-card" id="verseCard">
+        <!-- Corner ornaments -->
+        <div class="corner-ornament c-tl">❧</div>
+        <div class="corner-ornament c-tr">❧</div>
+        <div class="corner-ornament c-bl">❧</div>
+        <div class="corner-ornament c-br">❧</div>
+
+        <!-- Tag strip -->
+        <div id="verseTagStrip" class="tag-strip hidden"></div>
+
+        <!-- Verse text -->
+        <div class="parchment-inner">
+          <div class="verse-open-quote">"</div>
+          <div id="verseDisplay" class="verse-text">
+            <p class="idle-text">點擊下方「抽取神諭」揭開屬於你的聖言</p>
+          </div>
+          <p id="referenceDisplay" class="verse-reference"></p>
+
+          <!-- Action row -->
+          <div id="verseActions" class="action-row hidden">
+            <button id="saveBtn" class="parchment-action-btn" title="收入寶典">
+              <span id="saveIcon" class="action-icon">♡</span>
+              <span id="saveBtnText">收入寶典</span>
+            </button>
+            <button id="shareBtn" class="parchment-action-btn" title="傳送福音">
+              <span class="action-icon">⇪</span>
+              <span>傳送</span>
+            </button>
+            <button id="copyBtn" class="parchment-action-btn" title="謄錄金句">
+              <span class="action-icon">✎</span>
+              <span>謄錄</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Draw Button -->
+    <div class="draw-section">
+      <button id="drawBtn" class="draw-rune-btn">
+        <span class="draw-rune-inner">
+          <span class="draw-rune-icon">⚜</span>
+          <span class="draw-rune-text">抽取神諭</span>
+        </span>
+        <div class="btn-particles" id="btnParticles"></div>
+      </button>
+      <p class="shortcut-hint">按 <kbd>Space</kbd> 亦可召喚</p>
+    </div>
+
+    <!-- Stats Panel -->
+    <div class="stats-panel" id="statsPanel">
+      <div class="stat-cell">
+        <div class="stat-icon">⚔</div>
+        <div class="stat-num" id="totalDraws">0</div>
+        <div class="stat-label">召喚次數</div>
+      </div>
+      <div class="panel-divider"></div>
+      <div class="stat-cell">
+        <div class="stat-icon">♥</div>
+        <div class="stat-num" id="totalFavs">0</div>
+        <div class="stat-label">寶典收藏</div>
+      </div>
+      <div class="panel-divider"></div>
+      <div class="stat-cell">
+        <div class="stat-icon">☀</div>
+        <div class="stat-num" id="streak">0</div>
+        <div class="stat-label">連續天數</div>
+      </div>
+      <div class="panel-divider"></div>
+      <div class="stat-cell">
+        <div class="stat-icon">📜</div>
+        <div class="stat-num" id="totalVerses">0</div>
+        <div class="stat-label">典籍總數</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ══ TOAST ══ -->
+  <div id="toast" class="medieval-toast"></div>
+
+  <!-- ══ FAVORITES MODAL ══ -->
+  <div id="favoritesModal" class="modal-overlay hidden">
+    <div class="modal-panel">
+      <div class="modal-header-bar">
+        <div class="modal-title-area">
+          <span class="modal-title-icon">♥</span>
+          <h2 class="modal-title">我的靈糧寶典</h2>
+        </div>
+        <button class="modal-close-btn" id="closeFavBtn">✕</button>
+      </div>
+      <div class="modal-search-area">
+        <span class="search-icon-prefix">⚲</span>
+        <input type="text" id="favSearchInput" placeholder="搜索經文..." class="rune-input">
+      </div>
+      <div id="favoritesList" class="scroll-list"></div>
+      <div class="modal-footer">
+        <button id="exportFavBtn" class="footer-btn">📥 匯出寶典</button>
+        <button id="clearAllFavBtn" class="footer-btn danger-btn">🗑 清空寶典</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ HISTORY MODAL ══ -->
+  <div id="historyModal" class="modal-overlay hidden">
+    <div class="modal-panel">
+      <div class="modal-header-bar">
+        <div class="modal-title-area">
+          <span class="modal-title-icon">⚔</span>
+          <h2 class="modal-title">探索紀錄</h2>
+        </div>
+        <button class="modal-close-btn" id="closeHistBtn">✕</button>
+      </div>
+      <div id="historyList" class="scroll-list"></div>
+    </div>
+  </div>
+
+  <!-- ══ DAILY VERSE MODAL ══ -->
+  <div id="dailyModal" class="modal-overlay hidden">
+    <div class="modal-panel daily-panel">
+      <div class="modal-header-bar">
+        <div class="modal-title-area">
+          <span class="modal-title-icon">☀</span>
+          <h2 class="modal-title">今日神諭</h2>
+        </div>
+        <button class="modal-close-btn" id="closeDailyBtn">✕</button>
+      </div>
+      <div class="daily-content">
+        <div class="daily-date-badge" id="dailyDate"></div>
+        <div class="daily-verse-area">
+          <div class="daily-open-quote">"</div>
+          <p class="daily-verse-text" id="dailyQuote"></p>
+          <p class="daily-ref" id="dailyReference"></p>
+        </div>
+        <div id="dailyTagStrip" class="tag-strip-daily"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
