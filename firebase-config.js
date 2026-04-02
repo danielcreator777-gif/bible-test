@@ -4,12 +4,12 @@
 // ══════════════════════════════════════════════════
 
 const firebaseConfig = {
-  apiKey:            "AIzaSyDQUiTFT2iRyLZFYsOePH3kJOxwC1gF600",
+  apiKey:            "AIzaSyDQUiTFT2iRylZFYsOePH3kJOxwC1gF600",
   authDomain:        "bible-verse-game-9ae7c.firebaseapp.com",
   projectId:         "bible-verse-game-9ae7c",
   storageBucket:     "bible-verse-game-9ae7c.firebasestorage.app",
   messagingSenderId: "238381426950",
-  appId:             "1:238381426950:web:48a7b8e6f1f4f46401f8d4"
+  appId:             "1:238381426950:web:6bda546eca7529ef97d687"
 };
 
 // 初始化 Firebase
